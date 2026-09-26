@@ -49,5 +49,5 @@ homework runner.
 
 
 ## Homework 1 solution: 
-> to students: please fill your solution description here.
+> to students: To solve the task, I initially explored a multi-prompt pipeline as introduced in class (e.g., separating transcription and mathematical calculation steps). However, experiments showed that splitting prompts led to context loss and cumulative inaccuracies in discount line items. Ultimately, I settled on a single-pass multimodal prompt design leveraging DeepSeek's vision model. By providing a precise definition for both `paid_amount` and `original_amount` along with a concrete few-shot example, the model directly processes visual layout and spatial information in one step. The output is strictly formatted as JSON, allowing Python to reliably parse and aggregate the exact monetary amounts using `Decimal` arithmetic.
 
