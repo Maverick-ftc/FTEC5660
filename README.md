@@ -49,5 +49,33 @@ homework runner.
 
 
 ## Homework 1 solution: 
-> to students: To solve the task, I initially explored a multi-prompt pipeline as introduced in class (e.g., separating transcription and mathematical calculation steps). However, experiments showed that splitting prompts led to context loss and cumulative inaccuracies in discount line items. Ultimately, I settled on a single-pass multimodal prompt design leveraging DeepSeek's vision model. By providing a precise definition for both `paid_amount` and `original_amount` along with a concrete few-shot example, the model directly processes visual layout and spatial information in one step. The output is strictly formatted as JSON, allowing Python to reliably parse and aggregate the exact monetary amounts using `Decimal` arithmetic.
+> to students:
++-------------------------------------------------------------+
+|                     Input: Receipt Image                    |
++-------------------------------------------------------------+
+|
+v
++-------------------------------------------------------------+
+|              Single-Pass Multimodal Vision Chain            |
+|     (deepseek-v4-flash-vision-exp + Single Structured Prompt) |
+|                                                             |
+|  * Extract paid_amount (after discount & rounding)          |
+|  * Extract original_amount (subtotal + discounts back)      |
++-------------------------------------------------------------+
+|
+v
++-------------------------------------------------------------+
+|                   Output: Raw JSON String                   |
+|         {"paid_amount": 102.30, "original_amount": 107.70}  |
++-------------------------------------------------------------+
+|
+v
++-------------------------------------------------------------+
+|             Python Post-Processing & Aggregation            |
+|                                                             |
+|  * Parse JSON using regex & fallback string handling        |
+|  * Exact Decimal summation across all receipts              |
+|  * Format output: HK$XXX.XX                                 |
++-------------------------------------------------------------+
+To solve the task, I initially explored a multi-prompt pipeline as introduced in class (e.g., separating transcription and mathematical calculation steps). However, experiments showed that splitting prompts led to context loss and cumulative inaccuracies in discount line items. Ultimately, I settled on a single-pass multimodal prompt design leveraging DeepSeek's vision model. By providing a precise definition for both `paid_amount` and `original_amount` along with a concrete few-shot example, the model directly processes visual layout and spatial information in one step. The output is strictly formatted as JSON, allowing Python to reliably parse and aggregate the exact monetary amounts using `Decimal` arithmetic.
 
