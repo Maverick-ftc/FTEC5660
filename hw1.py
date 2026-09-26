@@ -62,8 +62,43 @@ def build_chain() -> Any:
     Use the vision-capable DeepSeek Flash model named
     ``deepseek-v4-flash-vision-exp``. The API key is loaded from .env.
     """
-    ### YOUR CODE HERE
-    return None
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_deepseek import ChatDeepSeek
+
+    llm = ChatDeepSeek(
+        model="deepseek-v4-flash-vision-exp",
+        temperature=0.0,
+    )
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an expert OCR assistant specialized in analyzing supermarket receipts. "
+                "Analyze the receipt image carefully and extract two specific values in HKD:\n"
+                "1. `paid_amount`: The final total payment amount actually paid (after rounding, coupons, discounts).\n"
+                "2. `original_amount`: The original amount before discounts. Calculated as: Subtotal + all discount/promotion/coupon amounts added back as positive numbers (do NOT add back rounding).\n\n"
+                "Respond strictly in JSON format as follows:\n"
+                '{{"paid_amount": 102.30, "original_amount": 107.70}}',
+            ),
+            (
+                "human",
+                [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "{image_url}"},
+                    },
+                    {
+                        "type": "text",
+                        "text": "Please parse this receipt according to the instructions.",
+                    },
+                ],
+            ),
+        ]
+    )
+
+    chain = prompt | llm
+    return chain
 
 
 def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
@@ -78,9 +113,36 @@ def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
     multimodal human messages. LangChain's ``batch`` method is one simple way
     to process independent receipt-extraction prompts in parallel.
     """
-    ### YOUR CODE HERE
-    _ = (chain, images)
-    return {QUERY_1: DUMMY_RESPONSE, QUERY_2: DUMMY_RESPONSE}
+    if not images:
+        return {QUERY_1: "HK$0.00", QUERY_2: "HK$0.00"}
+
+    inputs = [{"image_url": image_data_url(img_path)} for img_path in images]
+
+    results = chain.batch(inputs)
+
+    total_paid = Decimal("0.00")
+    total_original = Decimal("0.00")
+
+    for res in results:
+        text = response_text(res)
+        text_clean = re.sub(r"```(?:json)?\s*|\s*```", "", text).strip()
+        
+        try:
+            data = json.loads(text_clean)
+            paid = Decimal(str(data.get("paid_amount", 0))).quantize(Decimal("0.01"))
+            orig = Decimal(str(data.get("original_amount", 0))).quantize(Decimal("0.01"))
+        except (json.JSONDecodeError, InvalidOperation, TypeError):
+            numbers = _MONEY_RE.findall(text)
+            paid = Decimal(numbers[0]) if len(numbers) > 0 else Decimal("0.00")
+            orig = Decimal(numbers[1]) if len(numbers) > 1 else paid
+
+        total_paid += paid
+        total_original += orig
+
+    return {
+        QUERY_1: f"HK${total_paid:.2f}",
+        QUERY_2: f"HK${total_original:.2f}",
+    }
 
 
 # Everything below is provided runner/scoring code. No edits are needed.
